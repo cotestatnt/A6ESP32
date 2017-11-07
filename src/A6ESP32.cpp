@@ -4,6 +4,8 @@
 /////////////////////////////////////////////
 // Public methods.
 
+#define RETRY 1
+
 
 A6ESP32::A6ESP32(const byte uart) {
 	A6conn = new HardwareSerial(uart);
@@ -40,7 +42,7 @@ byte A6ESP32::begin(long baudRate, byte rxPin, byte txPin) {
     }
     
     // Factory reset.
-    // A6command("AT&F", "OK", "yy", A6_CMD_TIMEOUT, 2, NULL, false);
+    A6command("AT&F", "OK", "yy", A6_CMD_TIMEOUT, 2, NULL, false);
 
     // Echo off.
     A6command("ATE0", "OK", "yy", A6_CMD_TIMEOUT, 2, NULL, false);
@@ -103,24 +105,22 @@ void A6ESP32::powerOn(int pin) {
 // Dial a number.
 void A6ESP32::dial(String number) {
     char buffer[50];
-
     logln("Dialing number...");
-
     sprintf(buffer, "ATD%s;", number.c_str());
-    A6command(buffer, "OK", "yy", A6_CMD_TIMEOUT, 2, NULL, false);
+    A6command(buffer, "OK", "yy", A6_CMD_TIMEOUT, RETRY, NULL, false);
 }
 
 
 // Redial the last number.
 void A6ESP32::redial() {
     logln("Redialing last number...");
-    A6command("AT+DLST", "OK", "CONNECT", A6_CMD_TIMEOUT, 2, NULL, false);
+    A6command("AT+DLST", "OK", "CONNECT", A6_CMD_TIMEOUT, RETRY, NULL, false);
 }
 
 
 // Answer a call.
 void A6ESP32::answer() {
-    A6command("ATA", "OK", "yy", A6_CMD_TIMEOUT, 2, NULL, false);
+    A6command("ATA", "OK", "yy", A6_CMD_TIMEOUT, RETRY, NULL, false);
 }
 
 
@@ -138,7 +138,7 @@ callInfo A6ESP32::checkCallStatus() {
     callInfo cinfo;
 
     // Issue the command and wait for the response.
-    A6command("AT+CLCC", "OK", "+CLCC", A6_CMD_TIMEOUT, 2, &response, false);
+    A6command("AT+CLCC", "OK", "+CLCC", A6_CMD_TIMEOUT, RETRY, &response, false);
 
     // Parse the response if it contains a valid +CLCC.
     respStart = response.indexOf("+CLCC");
@@ -171,7 +171,7 @@ int A6ESP32::getSignalStrength() {
     int strength, error  = 0;
 
     // Issue the command and wait for the response.
-    A6command("AT+CSQ", "OK", "+CSQ", A6_CMD_TIMEOUT, 2, &response, false);
+    A6command("AT+CSQ", "OK", "+CSQ", A6_CMD_TIMEOUT, RETRY, &response, false);
 
     respStart = response.indexOf("+CSQ");
     if (respStart < 0) {
@@ -201,7 +201,7 @@ byte A6ESP32::sendSMS(String number, String text) {
     logln("...");
 
     sprintf(buffer, "AT+CMGS=\"%s\"", number.c_str());
-    A6command(buffer, ">", "yy", A6_CMD_TIMEOUT, 2, NULL, false);
+    A6command(buffer, ">", "yy", A6_CMD_TIMEOUT, RETRY, NULL, false);
     delay(100);
     A6conn->println(text.c_str());
     A6conn->println(ctrlZ);
@@ -231,7 +231,7 @@ int A6ESP32::getSMSLocsOfType(int* buf, int maxItems, String type) {
     command += "\"";
 
     // Issue the command and wait for the response.
-    A6command(command.c_str(), "\xff\r\nOK\r\n", "\r\nOK\r\n", A6_CMD_TIMEOUT, 2, &response, false);
+    A6command(command.c_str(), "\xff\r\nOK\r\n", "\r\nOK\r\n", A6_CMD_TIMEOUT, RETRY, &response, false);
 
     int seqStartLen = seqStart.length();
     int responseLen = response.length();
@@ -257,7 +257,7 @@ SMSmessage A6ESP32::readSMS(int index) {
 
     // Issue the command and wait for the response.
     sprintf(buffer, "AT+CMGR=%d", index);
-    A6command(buffer, "\xff\r\nOK\r\n", "\r\nOK\r\n", A6_CMD_TIMEOUT, 2, &response, false);
+    A6command(buffer, "\xff\r\nOK\r\n", "\r\nOK\r\n", A6_CMD_TIMEOUT, RETRY, &response, false);
    
     char number[50];
     char date[50];
@@ -282,7 +282,7 @@ SMSmessage A6ESP32::readSMS(int index) {
 byte A6ESP32::deleteSMS(int index) {
     char buffer[20];
     sprintf(buffer, "AT+CMGD=%d", index);
-    return A6command(buffer, "OK", "yy", A6_CMD_TIMEOUT, 2, NULL, false);
+    return A6command(buffer, "OK", "yy", A6_CMD_TIMEOUT, RETRY, NULL, false);
 }
 
 
@@ -290,7 +290,7 @@ byte A6ESP32::deleteSMS(int index) {
 byte A6ESP32::setSMScharset(String charset) {
     char buffer[30];
     sprintf(buffer, "AT+CSCS=\"%s\"", charset.c_str());
-    return A6command(buffer, "OK", "yy", A6_CMD_TIMEOUT, 2, NULL, false);
+    return A6command(buffer, "OK", "yy", A6_CMD_TIMEOUT, RETRY, NULL, false);
 }
 
 
@@ -302,7 +302,7 @@ void A6ESP32::setVol(byte level) {
     // level should be between 5 and 8.
     level = min(max(level, 5), 8);
     sprintf(buffer, "AT+CLVL=%d", level);
-    A6command(buffer, "OK", "yy", A6_CMD_TIMEOUT, 2, NULL, false);
+    A6command(buffer, "OK", "yy", A6_CMD_TIMEOUT, RETRY, NULL, false);
 }
 
 
@@ -314,14 +314,14 @@ void A6ESP32::enableSpeaker(byte enable) {
     // enable should be between 0 and 1.
     enable = min(max(enable, 0), 1);
     sprintf(buffer, "AT+SNFS=%d", enable);
-    A6command(buffer, "OK", "yy", A6_CMD_TIMEOUT, 2, NULL, false);
+    A6command(buffer, "OK", "yy", A6_CMD_TIMEOUT, RETRY, NULL, false);
 }
 
 
 
 byte A6ESP32::sendATString(const char *command){
   byte returnValue = A6_NOTOK;
-  returnValue = A6command(command, "OK", "yy", A6_CMD_TIMEOUT, 1, NULL, true);
+  returnValue = A6command(command, "OK", "yy", A6_CMD_TIMEOUT, RETRY, NULL, true);
   return returnValue;
 }
 
@@ -342,12 +342,10 @@ long A6ESP32::detectRate(byte rxPin, byte txPin) {
         rate = rates[i];
 
         A6conn->begin(rate, SERIAL_8N1, rxPin, txPin);
-        log("Trying rate ");
-        log(rate);
-        logln("...");
+        log("Trying rate " + String(rate) + "...");
 
         delay(100);
-        if (A6command("\rAT", "OK", "+CME", 2000, 2, NULL, false) == A6_OK) {
+        if (A6command("\rAT", "OK", "+CME", 2000, RETRY +1, NULL, false) == A6_OK) {
             return rate;
         }
     }
@@ -374,9 +372,9 @@ char A6ESP32::setBaudRate(long baudRate, byte rxPin, byte txPin) {
     // Change the rate to the requested.
     char buffer[30];
     sprintf(buffer, "AT+IPR=%lu", baudRate);
-    A6command(buffer, "OK", "+IPR=", A6_CMD_TIMEOUT, 3, NULL, false);
+    A6command(buffer, "OK", "+IPR=", A6_CMD_TIMEOUT, RETRY +2, NULL, false);
 
-    logln("Switching to the new rate...");
+    logln("Switching to the new rate... ");
     // Begin the connection again at the requested rate.
     A6conn->begin(baudRate, SERIAL_8N1, rxPin, txPin);
     logln("Rate set.");
@@ -409,12 +407,10 @@ byte A6ESP32::A6command(const char *command, const char *resp1, const char *resp
 	byte returnValue = A6_NOTOK;
 	byte count = 0;
 	while (count < repetitions && returnValue != A6_OK) {
-		log("Issuing command: ");
-		logln(command);
+		logln("Command: " + String(command));
 		// Force serial log (form command sent manually)
 		if (log) {
-			Serial.print("Command: ");
-			Serial.println(command);
+			Serial.println("Command: " + String(command));
 		}
 
 		A6conn->write(command);
@@ -442,15 +438,11 @@ byte A6ESP32::A6waitFor(const char *resp1, const char *resp2, int timeout, Strin
 	} while (((reply.indexOf(resp1) + reply.indexOf(resp2)) == -2) && ((millis() - entry) < timeout));
 
 	if (reply != "") {
-		log("Reply in ");
-		log(millis() - entry);
-		log(" ms: ");
-		logln(reply);
+		String myString = reply;
+		myString.trim();
+		logln("Reply in " + String(millis() - entry) + " ms: " + myString);
 		if (log) {
-			Serial.print("Reply in ");
-			Serial.print(millis() - entry);
-			Serial.print(" ms: ");
-			Serial.println(reply);
+			Serial.println("Reply in " + String(millis() - entry) + " ms: " + myString);
 		}
 	}
 
@@ -460,17 +452,15 @@ byte A6ESP32::A6waitFor(const char *resp1, const char *resp2, int timeout, Strin
 
 	if ((millis() - entry) >= timeout) {
 		retVal = A6_TIMEOUT;
-		logln("Timed out.");
+		log("Timed out.");
 	}
 	else {
-		if (reply.indexOf(resp1) + reply.indexOf(resp2) > -2) {
-			logln("Reply OK.");
+		if (reply.indexOf(resp1) + reply.indexOf(resp2) > -2) 			
 			retVal = A6_OK;
-		}
-		else {
-			logln("Reply NOT OK.");
+		
+		else 			
 			retVal = A6_NOTOK;
-		}
+		
 	}
 	return retVal;
 }

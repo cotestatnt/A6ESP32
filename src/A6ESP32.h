@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 #define log(msg) Serial.print(msg)
